@@ -8,6 +8,9 @@
 # https://firebase.google.com/docs/cloud-messaging/auth-server#linux-or-macos
 
 from fastapi import FastAPI, status, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+
+import uvicorn
 import firebase_admin
 from firebase_admin import credentials, messaging, firestore_async
 from pydantic import BaseModel
@@ -16,6 +19,13 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 cred = credentials.Certificate(os.getenv("JSON_PATH"))
 firebase_app = firebase_admin.initialize_app(cred)
@@ -53,3 +63,7 @@ async def call_user(call_data: CallData):
     else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail='Number doesn\t exist')
+
+
+if __name__ == "__main__":
+    uvicorn.run(app=app, host='0.0.0.0')

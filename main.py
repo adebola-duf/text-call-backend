@@ -45,7 +45,7 @@ class CallData(BaseModel):
 
 @app.post(path='/call-user/')
 async def call_user(call_data: CallData):
-    doc_ref = db.collection("users").document(call_data.caller_phone_number)
+    doc_ref = db.collection("users").document(call_data.callee_phone_number)
     doc = await doc_ref.get()
 
     if doc.exists:

@@ -43,9 +43,14 @@ class CallData(BaseModel):
     message: str
 
 
-@app.get(path="/call-accepted/{caller_phone_number}")
-async def call_accepted(caller_phone_number: str):
-    await manager.send_to(caller_phone_number=caller_phone_number, message='I hath indeed heeded the beckoning of the telephone.')
+@app.get(path="/call/{call_status}/{caller_phone_number}")
+async def handle_call(call_status: str,caller_phone_number: str):
+    if call_status == 'rejected':
+        data = {'message': 'I doth decline the call with utmost regret.', 'call_status': call_status}
+    elif call_status == 'accepted':
+        data = {'message': 'I hath indeed heeded the beckoning of the telephone.', 'call_status': call_status}
+
+    await manager.send_to(caller_phone_number=caller_phone_number, data=data)
 
 
 class ConnectionManager:
@@ -65,9 +70,8 @@ class ConnectionManager:
                 phone_number_websocket_connection_to_delete = phone_number
         del self.caller_phone_number_websocket_dict[phone_number_websocket_connection_to_delete]
 
-    async def send_to(self, caller_phone_number: str, message: str):
-    
-        await self.caller_phone_number_websocket_dict[caller_phone_number].send_json({'message': message})
+    async def send_to(self, caller_phone_number: str, data: dict):
+        await self.caller_phone_number_websocket_dict[caller_phone_number].send_json(data)
 
 
 manager = ConnectionManager()
@@ -92,7 +96,7 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone_number: str):
             # Send a message to the device corresponding to the provided registration token.
             response = messaging.send(message)
             # Response is a message ID string.
-            print('Successfully sent message:', response)             
+            print('Successfully sent message:', response)
 
     except WebSocketDisconnect:
         manager.disconnect(websocket)

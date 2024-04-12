@@ -7,7 +7,7 @@
 # to read more
 # https://firebase.google.com/docs/cloud-messaging/auth-server#linux-or-macos
 
-from fastapi import FastAPI, status, HTTPException
+from fastapi import FastAPI, status, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 import uvicorn
@@ -43,27 +43,59 @@ class CallData(BaseModel):
     message: str
 
 
-@app.post(path='/call-user/')
-async def call_user(call_data: CallData):
-    doc_ref = db.collection("users").document(call_data.callee_phone_number)
-    doc = await doc_ref.get()
+@app.get(path="/call-accepted/{caller_phone_number}")
+async def call_accepted(caller_phone_number: str):
+    await manager.send_to(caller_phone_number=caller_phone_number, message='I hath indeed heeded the beckoning of the telephone.')
 
-    if doc.exists:
-        document = doc.to_dict()
-        print(f"Document data: {document}")
-        message = messaging.Message(
-            notification=messaging.Notification(title=f'{call_data.caller_phone_number} is calling'),data={'message': call_data.message}, token=document['fcmToken'],)
 
-        # Send a message to the device corresponding to the provided registration token.
-        response = messaging.send(message)
-        # Response is a message ID string.
-        print('Successfully sent message:', response)
+class ConnectionManager:
+    def __init__(self):
+        # this dictionary is to store phone number - websocket objects mappings
+        self.caller_phone_number_websocket_dict: dict[str, WebSocket] = {}
+    
+    async def connect(self, websocket: WebSocket, caller_phone_number: str):
+        await websocket.accept()
+        self.caller_phone_number_websocket_dict[caller_phone_number] = websocket
 
-        return {'message': 'call sent successfully'}
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail='Number doesn\t exist')
 
+    def disconnect(self, websocket: WebSocket):
+        phone_number_websocket_connection_to_delete = None
+        for phone_number, websocket_connection in self.caller_phone_number_websocket_dict.items():
+            if websocket_connection == websocket:
+                phone_number_websocket_connection_to_delete = phone_number
+        del self.caller_phone_number_websocket_dict[phone_number_websocket_connection_to_delete]
+
+    async def send_to(self, caller_phone_number: str, message: str):
+    
+        await self.caller_phone_number_websocket_dict[caller_phone_number].send_json({'message': message})
+
+
+manager = ConnectionManager()
+
+@app.websocket("/ws/{caller_phone_number}")
+async def websocket_endpoint(websocket: WebSocket, caller_phone_number: str):
+    await manager.connect(websocket, caller_phone_number)
+    try:
+        while True:
+            data = await websocket.receive_json()
+            call_data = CallData.model_validate(data)
+            print(call_data)
+
+            doc_ref = db.collection("users").document(call_data.callee_phone_number)
+            doc = await doc_ref.get()
+          
+            document = doc.to_dict()
+            print(f"Document data: {document}")
+            message = messaging.Message(
+                notification=messaging.Notification(title=f'{call_data.caller_phone_number} is calling'),data={'message': call_data.message}, token=document['fcmToken'],)
+
+            # Send a message to the device corresponding to the provided registration token.
+            response = messaging.send(message)
+            # Response is a message ID string.
+            print('Successfully sent message:', response)             
+
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
 
 if __name__ == "__main__":
     uvicorn.run(app=app, host='0.0.0.0')

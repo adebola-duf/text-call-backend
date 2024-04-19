@@ -84,20 +84,20 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone_number: str):
         while True:
             data = await websocket.receive_json()
             call_data = CallData.model_validate(data)
-            print(call_data)
+            print(call_data, flush=True)
 
             doc_ref = db.collection("users").document(call_data.callee_phone_number)
             doc = await doc_ref.get()
           
             document = doc.to_dict()
-            print(f"Document data: {document}")
+            print(f"Document data: {document}", flush=True)
             message = messaging.Message(
                 notification=messaging.Notification(title=f'{call_data.caller_phone_number} is calling'),data={'message': call_data.message, 'caller_phone_number': call_data.caller_phone_number, 'background_color': call_data.background_color}, token=document['fcmToken'],)
 
             # Send a message to the device corresponding to the provided registration token.
             response = messaging.send(message)
             # Response is a message ID string.
-            print('Successfully sent message:', response)
+            print('Successfully sent message:', response, flush=True)
 
     except WebSocketDisconnect:
         manager.disconnect(websocket)

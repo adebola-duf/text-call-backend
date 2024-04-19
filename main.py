@@ -10,7 +10,6 @@
 from fastapi import FastAPI, status, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
-import json
 import uvicorn
 import firebase_admin
 from firebase_admin import credentials, messaging, firestore_async
@@ -93,7 +92,7 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone_number: str):
             document = doc.to_dict()
             print(f"Document data: {document}")
             message = messaging.Message(
-                notification=messaging.Notification(title=f'{call_data.caller_phone_number} is calling'),data={'message': call_data.message, 'caller_phone_number': call_data.caller_phone_number, 'background_color': json.dumps(call_data.background_color)}, token=document['fcmToken'],)
+                notification=messaging.Notification(title=f'{call_data.caller_phone_number} is calling'),data={'message': call_data.message, 'caller_phone_number': call_data.caller_phone_number, 'background_color': call_data.background_color}, token=document['fcmToken'],)
 
             # Send a message to the device corresponding to the provided registration token.
             response = messaging.send(message)

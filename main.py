@@ -103,8 +103,7 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone_number: str):
 
             document = doc.to_dict()
             print(f"Document data: {document}", flush=True)
-            message = messaging.Message(
-                notification=messaging.Notification(title=f'{call_data.caller_phone_number} is calling'), data={'message': call_data.message, 'caller_phone_number': call_data.caller_phone_number, 'red': str(call_data.background_color.red), 'blue': str(call_data.background_color.blue), 'green': str(call_data.background_color.green), 'alpha': str(call_data.background_color.alpha)}, token=document['fcmToken'],)
+            message = messaging.Message(data={ 'message': call_data.message, 'caller_phone_number': call_data.caller_phone_number, 'red': str(call_data.background_color.red), 'blue': str(call_data.background_color.blue), 'green': str(call_data.background_color.green), 'alpha': str(call_data.background_color.alpha)},token=document['fcmToken'],)
 
             # Send a message to the device corresponding to the provided registration token.
             response = messaging.send(message)

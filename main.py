@@ -85,10 +85,12 @@ async def handle_request_status(request_status: str, requester_phone_number: str
 
     doc = await doc_ref.get()
     document = doc.to_dict()
+
     message = messaging.Message(android=messaging.AndroidConfig(priority='high'),
-                                data={'purpose': 'request_status', 'requester_phone_number': requester_phone_number,
-                                      'message_id': message_id, 'access_request_status': request_status},
+                                data={'purpose': 'request_status', 'requestee_phone_number': requestee_phone_number,
+                                    'message_id': message_id, 'access_request_status': request_status},
                                 token=document['fcmToken'],)
+                                    
     response = messaging.send(message)
     print('Successfully sent message:', response, flush=True)
 

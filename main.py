@@ -43,6 +43,7 @@ class CallData(BaseModel):
     callee_phone_number: str
     message: str
     background_color: 'Color'
+    message_id: str
 
 
 class Color(BaseModel):
@@ -62,6 +63,34 @@ async def handle_call(call_status: str, caller_phone_number: str):
                 'call_status': call_status}
 
     await manager.send_to(caller_phone_number=caller_phone_number, data=data)
+
+
+@app.get(path='/send-access-request/{requester_phone_number}/{requestee_phone_number}/{message_id}')
+async def send_access_request(requester_phone_number: str, requestee_phone_number: str, message_id: str):
+    doc_ref = db.collection("users").document(
+        requestee_phone_number)
+    doc = await doc_ref.get()
+    document = doc.to_dict()
+    message = messaging.Message(android=messaging.AndroidConfig(priority='high'), data={
+                                'purpose': 'access_request', 'requester_phone_number': requester_phone_number, 'message_id': message_id},
+                                token=document['fcmToken'],)
+    response = messaging.send(message)
+    print('Successfully sent message:', response, flush=True)
+
+
+@app.get(path='/request_status/{request_status}/{requester_phone_number}/{requestee_phone_number}/{message_id}')
+async def handle_request_status(request_status: str, requester_phone_number: str, requestee_phone_number: str, message_id: str):
+    doc_ref = db.collection("users").document(
+        requester_phone_number)
+
+    doc = await doc_ref.get()
+    document = doc.to_dict()
+    message = messaging.Message(android=messaging.AndroidConfig(priority='high'),
+                                data={'purpose': 'request_status', 'requester_phone_number': requester_phone_number,
+                                      'message_id': message_id, 'access_request_status': request_status},
+                                token=document['fcmToken'],)
+    response = messaging.send(message)
+    print('Successfully sent message:', response, flush=True)
 
 
 class ConnectionManager:
@@ -104,8 +133,11 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone_number: str):
             document = doc.to_dict()
             print(f"Document data: {document}", flush=True)
             # https://firebase.google.com/docs/cloud-messaging/concept-options#data_messages
-            message = messaging.Message(android=messaging.AndroidConfig(priority='high'), data={'message': call_data.message, 'caller_phone_number': call_data.caller_phone_number, 'red': str(
-                call_data.background_color.red), 'blue': str(call_data.background_color.blue), 'green': str(call_data.background_color.green), 'alpha': str(call_data.background_color.alpha)}, token=document['fcmToken'],)
+            message = messaging.Message(
+                android=messaging.AndroidConfig(priority='high'),
+                data={'purpose': 'text_call', 'message_id': call_data.message_id, 'message': call_data.message, 'caller_phone_number': call_data.caller_phone_number, 'red': str(
+                    call_data.background_color.red), 'blue': str(call_data.background_color.blue), 'green': str(call_data.background_color.green), 'alpha': str(call_data.background_color.alpha)},
+                token=document['fcmToken'],)
 
             # Send a message to the device corresponding to the provided registration token.
             response = messaging.send(message)

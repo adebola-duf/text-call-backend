@@ -153,7 +153,7 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone_number: str):
             except firebase_admin.messaging.UnregisteredError as e:
                 print(f'Firebase Notification Failed. {e}')
                 new_data = {'call_status': 'error'}
-                await manager.send_to(caller_phone_number=caller_phone_number, data=data)
+                await manager.send_to(caller_phone_number=caller_phone_number, data=new_data)
 
     except WebSocketDisconnect:
         manager.disconnect(websocket)

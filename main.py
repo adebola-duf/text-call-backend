@@ -7,10 +7,12 @@
 # to read more
 # https://firebase.google.com/docs/cloud-messaging/auth-server#linux-or-macos
 
-from fastapi import FastAPI, status, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 import json
+import firebase_admin._messaging_utils
+import firebase_admin.messaging
 import uvicorn
 import firebase_admin
 from firebase_admin import credentials, messaging, firestore_async
@@ -73,7 +75,7 @@ async def send_access_request(requester_phone_number: str, requestee_phone_numbe
     document = doc.to_dict()
     message = messaging.Message(android=messaging.AndroidConfig(priority='high'), data={
                                 'purpose': 'access_request', 'requester_phone_number': requester_phone_number, 'message_id': message_id},
-                                token=document['fcmToken'],)
+                                token=document['fcmToken'])
     response = messaging.send(message)
     print('Successfully sent message:', response, flush=True)
 
@@ -88,9 +90,9 @@ async def handle_request_status(request_status: str, requester_phone_number: str
 
     message = messaging.Message(android=messaging.AndroidConfig(priority='high'),
                                 data={'purpose': 'request_status', 'requestee_phone_number': requestee_phone_number,
-                                    'message_id': message_id, 'access_request_status': request_status},
+                                      'message_id': message_id, 'access_request_status': request_status},
                                 token=document['fcmToken'],)
-                                    
+
     response = messaging.send(message)
     print('Successfully sent message:', response, flush=True)
 
@@ -135,16 +137,23 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone_number: str):
             document = doc.to_dict()
             print(f"Document data: {document}", flush=True)
             # https://firebase.google.com/docs/cloud-messaging/concept-options#data_messages
-            message = messaging.Message(
-                android=messaging.AndroidConfig(priority='high'),
-                data={'purpose': 'text_call', 'message_id': call_data.message_id, 'message': call_data.message, 'caller_phone_number': call_data.caller_phone_number, 'red': str(
-                    call_data.background_color.red), 'blue': str(call_data.background_color.blue), 'green': str(call_data.background_color.green), 'alpha': str(call_data.background_color.alpha)},
-                token=document['fcmToken'],)
 
-            # Send a message to the device corresponding to the provided registration token.
-            response = messaging.send(message)
-            # Response is a message ID string.
-            print('Successfully sent message:', response, flush=True)
+            try:
+                message = messaging.Message(
+                    android=messaging.AndroidConfig(priority='high'),
+                    data={'purpose': 'text_call', 'message_id': call_data.message_id, 'message': call_data.message, 'caller_phone_number': call_data.caller_phone_number, 'red': str(
+                        call_data.background_color.red), 'blue': str(call_data.background_color.blue), 'green': str(call_data.background_color.green), 'alpha': str(call_data.background_color.alpha)},
+                    token=document['fcmToken'],)
+
+                # Send a message to the device corresponding to the provided registration token.
+                # Response is a message ID string.
+                response = messaging.send(message)
+                print('Successfully sent message:', response, flush=True)
+
+            except firebase_admin.messaging.UnregisteredError as e:
+                print(f'Firebase Notification Failed. {e}')
+                new_data = {'call_status': 'error'}
+                await manager.send_to(caller_phone_number=caller_phone_number, data=data)
 
     except WebSocketDisconnect:
         manager.disconnect(websocket)

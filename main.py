@@ -73,7 +73,7 @@ async def send_access_request(requester_phone_number: str, requestee_phone_numbe
         requestee_phone_number)
     doc = await doc_ref.get()
     document = doc.to_dict()
-    message = messaging.Message(android=messaging.AndroidConfig(priority='high'), data={
+    message = messaging.Message(android=messaging.AndroidConfig(priority='high', ttl=60), data={
                                 'purpose': 'access_request', 'requester_phone_number': requester_phone_number, 'message_id': message_id},
                                 token=document['fcmToken'])
     response = messaging.send(message)

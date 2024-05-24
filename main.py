@@ -129,7 +129,7 @@ def check_last_called_time_for_callee(document: dict) -> bool:
     if (last_called_time_string == None):
         return True
     last_called_time_datetime: datetime = datetime.strptime(
-        last_called_time_string)
+        last_called_time_string, '%Y-%m-%d %H:%M:%S:%f')
     now = datetime.now()
     time_difference = now - last_called_time_datetime
 
@@ -168,7 +168,7 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone_number: str):
                     # Response is a message ID string.
                     response = messaging.send(message)
                     await doc_ref.update(
-                        {"lastCalledTime": datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')})
+                        {"lastCalledTime": datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')})
                     print('Successfully sent message:', response, flush=True)
 
                 except firebase_admin.messaging.UnregisteredError as e:

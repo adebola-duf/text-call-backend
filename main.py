@@ -167,7 +167,7 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone_number: str):
                     # Send a message to the device corresponding to the provided registration token.
                     # Response is a message ID string.
                     response = messaging.send(message)
-                    doc_ref.update(
+                    await doc_ref.update(
                         {"lastCalledTime": datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')})
                     print('Successfully sent message:', response, flush=True)
 

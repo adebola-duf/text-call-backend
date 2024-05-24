@@ -17,6 +17,8 @@ import uvicorn
 import firebase_admin
 from firebase_admin import credentials, messaging, firestore_async
 from pydantic import BaseModel
+from datetime import datetime
+
 import os
 from dotenv import load_dotenv
 load_dotenv()
@@ -121,6 +123,22 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
+# return whether we can call or not
+def check_last_called_time_for_callee(document: dict) -> bool:
+    last_called_time_string = document.get('lastCalledTime')
+    if (last_called_time_string == None):
+        return True
+    last_called_time_datetime: datetime = datetime.strptime(
+        last_called_time_string)
+    now = datetime.now()
+    time_difference = now - last_called_time_datetime
+
+    if (time_difference.seconds < 20):
+        return True
+
+    return False
+
+
 @app.websocket("/ws/{caller_phone_number}")
 async def websocket_endpoint(websocket: WebSocket, caller_phone_number: str):
     await manager.connect(websocket, caller_phone_number)
@@ -138,22 +156,28 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone_number: str):
             print(f"Document data: {document}", flush=True)
             # https://firebase.google.com/docs/cloud-messaging/concept-options#data_messages
 
-            try:
-                message = messaging.Message(
-                    android=messaging.AndroidConfig(priority='high'),
-                    data={'purpose': 'text_call', 'message_id': call_data.message_id, 'message': call_data.message, 'caller_phone_number': call_data.caller_phone_number, 'red': str(
-                        call_data.background_color.red), 'blue': str(call_data.background_color.blue), 'green': str(call_data.background_color.green), 'alpha': str(call_data.background_color.alpha)},
-                    token=document['fcmToken'],)
+            if (check_last_called_time_for_callee(document=document)):
+                try:
+                    message = messaging.Message(
+                        android=messaging.AndroidConfig(priority='high'),
+                        data={'purpose': 'text_call', 'message_id': call_data.message_id, 'message': call_data.message, 'caller_phone_number': call_data.caller_phone_number, 'red': str(
+                            call_data.background_color.red), 'blue': str(call_data.background_color.blue), 'green': str(call_data.background_color.green), 'alpha': str(call_data.background_color.alpha)},
+                        token=document['fcmToken'],)
 
-                # Send a message to the device corresponding to the provided registration token.
-                # Response is a message ID string.
-                response = messaging.send(message)
-                print('Successfully sent message:', response, flush=True)
+                    # Send a message to the device corresponding to the provided registration token.
+                    # Response is a message ID string.
+                    response = messaging.send(message)
+                    doc_ref.update(
+                        {"lastCalledTime": datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')})
+                    print('Successfully sent message:', response, flush=True)
 
-            except firebase_admin.messaging.UnregisteredError as e:
-                print(f'Firebase Notification Failed. {e}')
-                new_data = {'call_status': 'error'}
-                await manager.send_to(caller_phone_number=caller_phone_number, data=new_data)
+                except firebase_admin.messaging.UnregisteredError as e:
+                    print(f'Firebase Notification Failed. {e}')
+                    new_data = {'call_status': 'error'}
+                    await manager.send_to(caller_phone_number=caller_phone_number, data=new_data)
+
+            else:
+                await manager.send_to(caller_phone_number=caller_phone_number, data={'call_status': 'callee_busy'})
 
     except WebSocketDisconnect:
         manager.disconnect(websocket)

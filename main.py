@@ -42,21 +42,6 @@ def index():
     return True
 
 
-class CallData(BaseModel):
-    caller_phone_number: str
-    callee_phone_number: str
-    message: str
-    background_color: 'Color'
-    message_id: str
-
-
-class Color(BaseModel):
-    red: int
-    blue: int
-    green: int
-    alpha: int
-
-
 @app.get(path="/call/{call_status}/{caller_phone_number}")
 async def handle_call(call_status: str, caller_phone_number: str):
     if call_status == 'rejected':
@@ -139,6 +124,14 @@ def check_last_called_time_for_callee(document: dict) -> bool:
     return True
 
 
+class CallData(BaseModel):
+    caller_phone_number: str
+    callee_phone_number: str
+    message_json_string: str
+    message_type: str
+    message_id: str
+
+
 @app.websocket("/ws/{caller_phone_number}")
 async def websocket_endpoint(websocket: WebSocket, caller_phone_number: str):
     await manager.connect(websocket, caller_phone_number)
@@ -160,15 +153,25 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone_number: str):
                 try:
                     message = messaging.Message(
                         android=messaging.AndroidConfig(priority='high'),
-                        data={'purpose': 'text_call', 'message_id': call_data.message_id, 'message': call_data.message, 'caller_phone_number': call_data.caller_phone_number, 'red': str(
-                            call_data.background_color.red), 'blue': str(call_data.background_color.blue), 'green': str(call_data.background_color.green), 'alpha': str(call_data.background_color.alpha)},
-                        token=document['fcmToken'],)
+                        data={
+                            'purpose': 'text_call',
+                            'message_id': call_data.message_id,
+                            'message': call_data.message_json_string,
+                            'caller_phone_number': call_data.caller_phone_number,
+                            'message_type': call_data.message_type,
 
+                        },
+                        token=document['fcmToken'],
+                    )
+                    
                     # Send a message to the device corresponding to the provided registration token.
                     # Response is a message ID string.
                     response = messaging.send(message)
                     await doc_ref.update(
-                        {"lastCalledTime": datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')})
+                        {
+                            "lastCalledTime": datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
+                        }
+                    )
                     print('Successfully sent message:', response, flush=True)
 
                 except firebase_admin.messaging.UnregisteredError as e:

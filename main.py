@@ -128,7 +128,7 @@ class CallData(BaseModel):
     caller_phone_number: str
     callee_phone_number: str
     message_json_string: str
-    message_type: str
+    my_message_type: str
     message_id: str
 
 
@@ -158,7 +158,7 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone_number: str):
                             'message_id': call_data.message_id,
                             'message': call_data.message_json_string,
                             'caller_phone_number': call_data.caller_phone_number,
-                            'message_type': call_data.message_type,
+                            'my_message_type': call_data.my_message_type,
 
                         },
                         token=document['fcmToken'],

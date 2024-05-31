@@ -156,7 +156,7 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone_number: str):
                         data={
                             'purpose': 'text_call',
                             'message_id': call_data.message_id,
-                            'message': call_data.message_json_string,
+                            'message_json_string': call_data.message_json_string,
                             'caller_phone_number': call_data.caller_phone_number,
                             'my_message_type': call_data.my_message_type,
 

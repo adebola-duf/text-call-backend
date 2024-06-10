@@ -45,12 +45,11 @@ def index():
 @app.get(path="/call/{call_status}/{caller_phone_number}")
 async def handle_call(call_status: str, caller_phone_number: str):
     if call_status == 'rejected':
-        data = {'message': 'I doth decline the call with utmost regret.',
-                'call_status': call_status}
+        data = {'call_status': call_status}
     elif call_status == 'accepted':
-        data = {'message': 'I hath indeed heeded the beckoning of the telephone.',
-                'call_status': call_status}
-
+        data = {'call_status': call_status}
+    elif call_status == 'ignored':
+        data = {'call_status': call_status}
     await manager.send_to(caller_phone_number=caller_phone_number, data=data)
 
 
@@ -163,7 +162,7 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone_number: str):
                         },
                         token=document['fcmToken'],
                     )
-                    
+
                     # Send a message to the device corresponding to the provided registration token.
                     # Response is a message ID string.
                     response = messaging.send(message)

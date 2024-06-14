@@ -50,6 +50,8 @@ async def handle_call(call_status: str, caller_phone_number: str):
         data = {'call_status': call_status}
     elif call_status == 'ignored':
         data = {'call_status': call_status}
+    elif call_status == 'blocked':
+        data = {'call_status': 'blocked'}
     await manager.send_to(caller_phone_number=caller_phone_number, data=data)
 
 

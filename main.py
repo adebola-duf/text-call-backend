@@ -42,16 +42,11 @@ def index():
     return True
 
 
-@app.get(path="/call/{call_status}/{caller_phone_number}")
-async def handle_call(call_status: str, caller_phone_number: str):
-    if call_status == 'rejected':
-        data = {'call_status': call_status}
-    elif call_status == 'accepted':
-        data = {'call_status': call_status}
-    elif call_status == 'ignored':
-        data = {'call_status': call_status}
-    elif call_status == 'blocked':
-        data = {'call_status': 'blocked'}
+@app.get(path="/call/{call_status}/{caller_phone_number}/{block_message}")
+async def handle_call(call_status: str, caller_phone_number: str, block_message: str | None = None):
+    data = {'call_status': call_status}
+    if call_status == 'blocked' and block_message:
+        data = {'call_status': 'blocked', 'block_message': block_message}
     await manager.send_to(caller_phone_number=caller_phone_number, data=data)
 
 

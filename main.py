@@ -41,7 +41,7 @@ db = firestore_async.client()
 def index():
     return True
 
-
+@app.get(path="/call/{call_status}/{caller_phone_number}/")
 @app.get(path="/call/{call_status}/{caller_phone_number}/{block_message}")
 async def handle_call(call_status: str, caller_phone_number: str, block_message: str | None = None):
     data = {'call_status': call_status}

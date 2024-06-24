@@ -50,7 +50,7 @@ def index():
     return True
 
 
-@app.get(path="/call/{call_status}/{caller_phone_number}/")
+@app.get(path="/call/{call_status}/{caller_phone_number}")
 @app.get(path="/call/{call_status}/{caller_phone_number}/{block_message}")
 async def handle_call(call_status: str, caller_phone_number: str, block_message: str | None = None):
     data = {'call_status': call_status}
@@ -59,7 +59,7 @@ async def handle_call(call_status: str, caller_phone_number: str, block_message:
     await manager.send_to(caller_phone_number=caller_phone_number, data=data)
 
 
-@app.post(path='/end-call/')
+@app.post(path='/end-call')
 async def end_call(call_data: "CallData"):
 
     doc_ref = db.collection("users").document(

@@ -10,7 +10,7 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
-import json
+import requests
 import firebase_admin._messaging_utils
 import firebase_admin.messaging
 import uvicorn
@@ -35,6 +35,10 @@ app.add_middleware(
 cred = credentials.Certificate(os.getenv("JSON_PATH"))
 firebase_app = firebase_admin.initialize_app(cred)
 db = firestore_async.client()
+
+API_KEY = os.getenv("API_KEY")
+SANDBOX_DOMAIN = os.getenv("SANDBOX_DOMAIN")
+RECEPIENT_MAIL = os.getenv("RECEPIENT_MAIL")
 
 
 class CallData(BaseModel):
@@ -205,6 +209,31 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone_number: str):
 
     except WebSocketDisconnect:
         manager.disconnect(websocket)
+
+# this endpoint is just a temporary one until I find out how to hide api keys in flutter.
+
+
+@app.get(path='/submit-feedback/subject/body')
+def send_feedback(subject: str, body: str):
+
+    sender_email = f'sandbox@{SANDBOX_DOMAIN}'
+    url = f'https://api.mailgun.net/v3/{SANDBOX_DOMAIN}/messages'
+
+    data = {
+        'from': sender_email,
+        'to': RECEPIENT_MAIL,
+        'subject': subject,
+        'text': body
+    }
+
+    # Send the POST request
+    response = requests.post(
+        url,
+        auth=('api', API_KEY),
+        data=data
+    )
+    return {"status": response.status_code, "response": response.text}
+
 
 if __name__ == "__main__":
     uvicorn.run(app=app, host='0.0.0.0')

@@ -213,7 +213,7 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone_number: str):
 # this endpoint is just a temporary one until I find out how to hide api keys in flutter.
 
 
-@app.get(path='/submit-feedback/subject/body')
+@app.get(path='/submit-feedback/{subject}/{body}')
 def send_feedback(subject: str, body: str):
 
     sender_email = f'sandbox@{SANDBOX_DOMAIN}'

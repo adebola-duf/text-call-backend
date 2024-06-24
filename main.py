@@ -51,15 +51,26 @@ async def handle_call(call_status: str, caller_phone_number: str, block_message:
     await manager.send_to(caller_phone_number=caller_phone_number, data=data)
 
 
-@app.get(path='/end-call/{callee_phone_number}')
-async def end_call(callee_phone_number: str):
+@app.post(path='/end-call/')
+async def end_call(call_data: "CallData"):
+
     doc_ref = db.collection("users").document(
-        callee_phone_number)
+        call_data.callee_phone_number)
     doc = await doc_ref.get()
     document = doc.to_dict()
-    message = messaging.Message(android=messaging.AndroidConfig(priority='high', ttl=60), data={
-                                'purpose': 'end_call'},
-                                token=document['fcmToken'])
+
+    message = messaging.Message(
+        android=messaging.AndroidConfig(priority='high'),
+        data={
+            'purpose': 'end_call',
+            'message_id': call_data.message_id,
+            'message_json_string': call_data.message_json_string,
+            'caller_phone_number': call_data.caller_phone_number,
+            'my_message_type': call_data.my_message_type,
+
+        },
+        token=document['fcmToken'],
+    )
     response = messaging.send(message)
     print('Successfully sent message:', response, flush=True)
 
@@ -142,7 +153,7 @@ class CallData(BaseModel):
     message_id: str
 
 
-@app.websocket("/ws/{caller_phone_number}")
+@app.websocket("/ws/")
 async def websocket_endpoint(websocket: WebSocket, caller_phone_number: str):
     await manager.connect(websocket, caller_phone_number)
     try:

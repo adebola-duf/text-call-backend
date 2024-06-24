@@ -37,6 +37,14 @@ firebase_app = firebase_admin.initialize_app(cred)
 db = firestore_async.client()
 
 
+class CallData(BaseModel):
+    caller_phone_number: str
+    callee_phone_number: str
+    message_json_string: str
+    my_message_type: str
+    message_id: str
+
+
 @app.get(path='/')
 def index():
     return True
@@ -143,14 +151,6 @@ def check_last_called_time_for_callee(document: dict) -> bool:
         return False
 
     return True
-
-
-class CallData(BaseModel):
-    caller_phone_number: str
-    callee_phone_number: str
-    message_json_string: str
-    my_message_type: str
-    message_id: str
 
 
 @app.websocket("/ws/")

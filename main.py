@@ -41,6 +41,7 @@ db = firestore_async.client()
 def index():
     return True
 
+
 @app.get(path="/call/{call_status}/{caller_phone_number}/")
 @app.get(path="/call/{call_status}/{caller_phone_number}/{block_message}")
 async def handle_call(call_status: str, caller_phone_number: str, block_message: str | None = None):
@@ -48,6 +49,19 @@ async def handle_call(call_status: str, caller_phone_number: str, block_message:
     if call_status == 'blocked' and block_message:
         data = {'call_status': 'blocked', 'block_message': block_message}
     await manager.send_to(caller_phone_number=caller_phone_number, data=data)
+
+
+@app.get(path='/end-call/{callee_phone_number}')
+async def end_call(callee_phone_number: str):
+    doc_ref = db.collection("users").document(
+        callee_phone_number)
+    doc = await doc_ref.get()
+    document = doc.to_dict()
+    message = messaging.Message(android=messaging.AndroidConfig(priority='high', ttl=60), data={
+                                'purpose': 'end_call'},
+                                token=document['fcmToken'])
+    response = messaging.send(message)
+    print('Successfully sent message:', response, flush=True)
 
 
 @app.get(path='/send-access-request/{requester_phone_number}/{requestee_phone_number}/{message_id}')

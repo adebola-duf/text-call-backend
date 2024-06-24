@@ -153,7 +153,7 @@ def check_last_called_time_for_callee(document: dict) -> bool:
     return True
 
 
-@app.websocket("/ws/")
+@app.websocket("/ws/{caller_phone_number}")
 async def websocket_endpoint(websocket: WebSocket, caller_phone_number: str):
     await manager.connect(websocket, caller_phone_number)
     try:

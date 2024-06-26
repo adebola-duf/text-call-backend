@@ -7,9 +7,11 @@
 # to read more
 # https://firebase.google.com/docs/cloud-messaging/auth-server#linux-or-macos
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Header, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import status
 
+from fastapi.responses import FileResponse
 import requests
 import firebase_admin._messaging_utils
 import firebase_admin.messaging
@@ -36,9 +38,11 @@ cred = credentials.Certificate(os.getenv("JSON_PATH"))
 firebase_app = firebase_admin.initialize_app(cred)
 db = firestore_async.client()
 
-API_KEY = os.getenv("API_KEY")
+MAILGUN_API_KEY = os.getenv("MAILGUN_API_KEY")
 SANDBOX_DOMAIN = os.getenv("SANDBOX_DOMAIN")
 RECEPIENT_MAIL = os.getenv("RECEPIENT_MAIL")
+TEXTCALL_BACKEND_API_KEY = os.getenv("TEXTCALL_BACKEND_API_KEY")
+API_KEY_NAME = "access_token"
 
 
 class CallData(BaseModel):
@@ -47,6 +51,13 @@ class CallData(BaseModel):
     message_json_string: str
     my_message_type: str
     message_id: str
+
+
+async def get_api_key(api_key: str = Header(...)):
+    if api_key != TEXTCALL_BACKEND_API_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Could not validate credentials"
+        )
 
 
 @app.get(path='/')
@@ -211,8 +222,6 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone_number: str):
         manager.disconnect(websocket)
 
 # this endpoint is just a temporary one until I find out how to hide api keys in flutter.
-
-
 @app.get(path='/submit-feedback/{subject}/{body}')
 def send_feedback(subject: str, body: str):
 
@@ -226,14 +235,17 @@ def send_feedback(subject: str, body: str):
         'text': body
     }
 
-    # Send the POST request
     response = requests.post(
         url,
-        auth=('api', API_KEY),
+        auth=('api', MAILGUN_API_KEY),
         data=data
     )
     return {"status": response.status_code, "response": response.text}
 
+
+@app.get(path="/download-apk")
+async def download():
+    return FileResponse(path=f"TextCall.apk", filename='TextCall.apk')
 
 if __name__ == "__main__":
     uvicorn.run(app=app, host='0.0.0.0')

@@ -7,9 +7,10 @@
 # to read more
 # https://firebase.google.com/docs/cloud-messaging/auth-server#linux-or-macos
 
-from fastapi import FastAPI, HTTPException, Header, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Header, WebSocket, WebSocketDisconnect, Depends, Security
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import status
+from fastapi.security import APIKeyHeader
 
 from fastapi.responses import FileResponse
 import requests
@@ -38,6 +39,7 @@ cred = credentials.Certificate(os.getenv("JSON_PATH"))
 firebase_app = firebase_admin.initialize_app(cred)
 db = firestore_async.client()
 
+
 MAILGUN_API_KEY = os.getenv("MAILGUN_API_KEY")
 SANDBOX_DOMAIN = os.getenv("SANDBOX_DOMAIN")
 RECEPIENT_MAIL = os.getenv("RECEPIENT_MAIL")
@@ -53,11 +55,12 @@ class CallData(BaseModel):
     message_id: str
 
 
-async def get_api_key(api_key: str = Header(...)):
+api_key_header = APIKeyHeader(name='x-api-key', auto_error=False)
+
+async def api_key_auth(api_key: str = Security(api_key_header)):
     if api_key != TEXTCALL_BACKEND_API_KEY:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Could not validate credentials"
-        )
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing or invalid API key")
 
 
 @app.get(path='/')
@@ -66,8 +69,7 @@ def index():
 
 
 @app.get(path="/call/{call_status}/{caller_phone_number}")
-@app.get(path="/call/{call_status}/{caller_phone_number}/{block_message}")
-async def handle_call(call_status: str, caller_phone_number: str, block_message: str | None = None):
+async def handle_call(call_status: str, caller_phone_number: str, block_message: str | None = None, api_key = Depends(api_key_auth)):
     data = {'call_status': call_status}
     if call_status == 'blocked' and block_message:
         data = {'call_status': 'blocked', 'block_message': block_message}
@@ -75,7 +77,7 @@ async def handle_call(call_status: str, caller_phone_number: str, block_message:
 
 
 @app.post(path='/end-call')
-async def end_call(call_data: "CallData"):
+async def end_call(call_data: "CallData", api_key = Depends(api_key_auth)):
 
     doc_ref = db.collection("users").document(
         call_data.callee_phone_number)
@@ -99,7 +101,7 @@ async def end_call(call_data: "CallData"):
 
 
 @app.get(path='/send-access-request/{requester_phone_number}/{requestee_phone_number}/{message_id}')
-async def send_access_request(requester_phone_number: str, requestee_phone_number: str, message_id: str):
+async def send_access_request(requester_phone_number: str, requestee_phone_number: str, message_id: str, api_key = Depends(api_key_auth)):
     doc_ref = db.collection("users").document(
         requestee_phone_number)
     doc = await doc_ref.get()
@@ -112,7 +114,7 @@ async def send_access_request(requester_phone_number: str, requestee_phone_numbe
 
 
 @app.get(path='/request_status/{request_status}/{requester_phone_number}/{requestee_phone_number}/{message_id}')
-async def handle_request_status(request_status: str, requester_phone_number: str, requestee_phone_number: str, message_id: str):
+async def handle_request_status(request_status: str, requester_phone_number: str, requestee_phone_number: str, message_id: str, api_key = Depends(api_key_auth)):
     doc_ref = db.collection("users").document(
         requester_phone_number)
 
@@ -223,7 +225,7 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone_number: str):
 
 # this endpoint is just a temporary one until I find out how to hide api keys in flutter.
 @app.get(path='/submit-feedback/{subject}/{body}')
-def send_feedback(subject: str, body: str):
+def send_feedback(subject: str, body: str, api_key = Depends(api_key_auth)):
 
     sender_email = f'sandbox@{SANDBOX_DOMAIN}'
     url = f'https://api.mailgun.net/v3/{SANDBOX_DOMAIN}/messages'
